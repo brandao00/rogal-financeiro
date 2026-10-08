@@ -1,5 +1,5 @@
-const CACHE = 'rogal-v13';
-const ARQUIVOS = ['./', './index.html', './style.css', './cofre.js', './app.js', './auth.js', './manifest.json', './icon.svg'];
+const CACHE = 'rogal-v14';
+const ARQUIVOS = ['./', './index.html', './style.css', './cofre.js', './app.js', './auth.js', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ARQUIVOS)));
