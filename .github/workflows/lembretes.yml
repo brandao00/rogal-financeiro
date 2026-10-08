@@ -1,0 +1,37 @@
+name: Lembretes
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: lembretes
+  cancel-in-progress: false
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+
+      - name: Enviar lembretes que chegaram na hora
+        run: node .github/lembretes.mjs
+        env:
+          DADOS_REPO: brandao00/rogal-dados
+          DADOS_TOKEN: ${{ secrets.DADOS_TOKEN }}
+          VAPID_PUBLIC: BKRJwj23LTEXXqUnI7dIQhJlMQA0FIhzA0wa4VFhj9hIM4paSjIgtijKNzrwVGOd5G2DYCafRjxBIo3UpfsRYAQ
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
+
+      # O GitHub desliga agendamentos de repositórios sem atividade por 60 dias.
+      - name: Manter o agendamento ligado
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/lembretes.yml/enable" > /dev/null
+        env:
+          GH_TOKEN: ${{ github.token }}
