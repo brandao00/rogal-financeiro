@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Rogal">
+  <title>Rogal · Despesas</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-aba="resumo" class="bloqueado">
+
+  <!-- LOGIN -->
+  <div id="telaLogin" class="login" hidden>
+    <div class="login-logo" aria-label="Rogal Engenharia">
+      <svg viewBox="112 104 276 216"><g fill="none" stroke="currentColor" stroke-width="4"><path d="M163 240.5H236.5V140.5H222V233" pathLength="1"/><path d="M238 115.5H253.5V242" pathLength="1"/><path d="M260 165.5H272.5V240.5H352" pathLength="1"/></g><g fill="currentColor" font-family="Inter, Arial, sans-serif" font-weight="300"><text x="157" y="285" font-size="30" textLength="188" lengthAdjust="spacing">ROGAL</text><text x="122" y="314" font-size="16.5" textLength="258" lengthAdjust="spacing">ENGENHARIA</text></g></svg>
+    </div>
+
+    <form class="login-card" id="formLogin" novalidate>
+      <div>
+        <span class="tag-mono">Acesso restrito</span>
+        <h1 id="loginTitulo">Entrar</h1>
+        <p id="loginSub">Acesse o controle de despesas da Rogal</p>
+      </div>
+
+      <label class="campo">E-mail
+        <span class="input-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+          <input type="email" name="email" placeholder="voce@rogalengenharia.com.br" autocomplete="username" inputmode="email">
+        </span>
+      </label>
+
+      <label class="campo">Senha
+        <span class="input-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <input type="password" name="senha" placeholder="••••••••" autocomplete="current-password">
+        </span>
+      </label>
+
+      <label class="campo" id="campoConfirmar" hidden>Confirmar senha
+        <span class="input-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <input type="password" name="confirmar" placeholder="••••••••" autocomplete="new-password">
+        </span>
+      </label>
+
+      <div class="login-erro" id="loginErro"></div>
+
+      <button class="btn btn-login" id="btnLogin">
+        <span id="loginBotao">Entrar</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </button>
+      <button type="button" class="login-link" id="btnEsqueci">Esqueci minha senha</button>
+    </form>
+
+    <div class="login-rodape"><b>Cauã Brandão</b></div>
+  </div>
+
+  <div class="app">
+
+    <!-- MENU LATERAL (computador) -->
+    <aside class="sidebar">
+      <svg class="sidebar-logo" viewBox="112 104 276 216" aria-label="Rogal Engenharia"><g fill="none" stroke="currentColor" stroke-width="4"><path d="M163 240.5H236.5V140.5H222V233" pathLength="1"/><path d="M238 115.5H253.5V242" pathLength="1"/><path d="M260 165.5H272.5V240.5H352" pathLength="1"/></g><g fill="currentColor" font-family="Inter, Arial, sans-serif" font-weight="300"><text x="157" y="285" font-size="30" textLength="188" lengthAdjust="spacing">ROGAL</text><text x="122" y="314" font-size="16.5" textLength="258" lengthAdjust="spacing">ENGENHARIA</text></g></svg>
+      <div class="sidebar-sub">Controle de despesas</div>
+
+      <nav class="side-nav">
+        <button data-tab="resumo" class="ativo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          Visão geral
+        </button>
+        <button data-tab="lancamentos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>
+          Lançamentos
+        </button>
+        <button data-tab="contas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 15 2 2 4-4"/></svg>
+          A pagar
+          <span class="contador" data-contador hidden></span>
+        </button>
+        <button data-tab="mais">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>
+          Ajustes
+        </button>
+      </nav>
+
+      <button class="btn btn-novo" data-novo>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Novo lançamento
+      </button>
+
+      <div class="sidebar-rodape">
+        <div class="usuario">
+          <div class="avatar" id="avatar">R</div>
+          <div class="usuario-info">
+            <span>Logado como</span>
+            <b id="sidebarEmail"></b>
+          </div>
+        </div>
+        <button class="icone-btn" data-sair title="Sair">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+        </button>
+      </div>
+    </aside>
+
+    <div class="conteudo">
+      <!-- TOPO (celular) -->
+      <header class="topbar">
+        <svg class="topbar-logo" viewBox="0 14 236 78" aria-label="Rogal Engenharia"><g fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 87.3H45.1V32.3H37.1V83.2" pathLength="1"/><path d="M45.9 18.5H54.4V88.1" pathLength="1"/><path d="M58 46H64.9V87.3H232" pathLength="1"/></g><g fill="currentColor" font-family="Inter, Arial, sans-serif" font-weight="300"><text x="80" y="60" font-size="22" textLength="112" lengthAdjust="spacing">ROGAL</text><text x="80" y="76" font-size="9.5" textLength="150" lengthAdjust="spacing">ENGENHARIA</text></g></svg>
+        <button class="icone-btn" data-sair title="Sair">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+        </button>
+      </header>
+
+      <div class="cabecalho">
+        <div>
+          <div class="eyebrow" id="pgData"></div>
+          <h1 id="pgTitulo">Visão geral</h1>
+        </div>
+        <div class="periodo">
+          <div class="periodo-mes">
+            <button id="mesAnt" aria-label="Mês anterior">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <button id="mesLabel" title="Voltar para o mês atual">—</button>
+            <button id="mesProx" aria-label="Próximo mês">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
+          <button id="btnTudo" class="chip">Tudo</button>
+        </div>
+      </div>
+
+      <main>
+        <!-- VISÃO GERAL -->
+        <section id="tab-resumo" class="tab ativa">
+          <div class="hero">
+            <div class="hero-topo">
+              <span class="eyebrow" id="heroRotulo">Saldo do mês</span>
+              <span class="hero-badge" id="heroBadge"></span>
+            </div>
+            <div class="hero-valor" id="rSaldo">R$ 0,00</div>
+            <div class="hero-stats">
+              <div class="hero-stat">
+                <span class="bolinha entrada">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7 7 7-7"/></svg>
+                </span>
+                <div><span>Entradas</span><b id="rEntradas">R$ 0,00</b></div>
+              </div>
+              <div class="hero-stat">
+                <span class="bolinha saida">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+                </span>
+                <div><span>Saídas</span><b id="rSaidas">R$ 0,00</b></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tiles">
+            <button class="tile" data-ir="contas">
+              <span class="tile-rotulo">A pagar</span>
+              <strong id="rPagar">R$ 0,00</strong>
+              <small id="rPagarQtd">Nenhuma conta</small>
+            </button>
+            <button class="tile" id="tileAtraso" data-ir="contas">
+              <span class="tile-rotulo">Em atraso</span>
+              <strong id="rAtrasado">R$ 0,00</strong>
+              <small id="rAtrasadoQtd">Tudo em dia</small>
+            </button>
+            <div class="tile">
+              <span class="tile-rotulo">Saldo geral</span>
+              <strong id="rCaixa">R$ 0,00</strong>
+              <small>Tudo que já entrou e saiu</small>
+            </div>
+          </div>
+
+          <div class="grade">
+            <div class="painel">
+              <div class="painel-topo">
+                <h3>Despesas por categoria</h3>
+              </div>
+              <div id="graficoCategorias"></div>
+            </div>
+
+            <div class="painel">
+              <div class="painel-topo">
+                <h3>Próximas contas</h3>
+                <button class="link" data-ir="contas">Ver todas
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </button>
+              </div>
+              <div id="listaVencimentos" class="linhas"></div>
+            </div>
+          </div>
+
+          <div class="painel">
+            <div class="painel-topo">
+              <h3>Últimos lançamentos</h3>
+              <button class="link" data-ir="lancamentos">Ver todos
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </button>
+            </div>
+            <div id="listaUltimos" class="linhas"></div>
+          </div>
+        </section>
+
+        <!-- LANÇAMENTOS -->
+        <section id="tab-lancamentos" class="tab">
+          <div class="filtros">
+            <label class="busca">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <input type="search" id="fBusca" placeholder="Buscar lançamento...">
+            </label>
+            <div class="filtros-selects">
+              <select id="fTipo">
+                <option value="">Tudo</option>
+                <option value="saida">Saídas</option>
+                <option value="entrada">Entradas</option>
+              </select>
+              <select id="fCategoria"></select>
+              <select id="fStatus">
+                <option value="">Status</option>
+                <option value="pago">Pagos</option>
+                <option value="pendente">Pendentes</option>
+              </select>
+            </div>
+          </div>
+          <div id="totaisFiltro"></div>
+          <div id="listaLancamentos"></div>
+        </section>
+
+        <!-- A PAGAR -->
+        <section id="tab-contas" class="tab">
+          <div id="resumoContas"></div>
+          <div id="listaContas"></div>
+        </section>
+
+        <!-- AJUSTES -->
+        <section id="tab-mais" class="tab">
+          <div class="painel">
+            <div class="painel-topo">
+              <h3>Backup dos dados</h3>
+            </div>
+            <p>Os dados ficam salvos neste navegador/aparelho. Faça backup com frequência e guarde o arquivo (e-mail, Google Drive, pen drive...).</p>
+            <p id="ultimoBackup"></p>
+            <div class="botoes-linha">
+              <button class="btn" id="btnBackup">Baixar backup</button>
+              <button class="btn sec" id="btnRestaurar">Restaurar backup</button>
+              <button class="btn sec" id="btnCSV">Exportar planilha (Excel)</button>
+              <input type="file" id="arqBackup" accept=".json,application/json" hidden>
+            </div>
+          </div>
+
+          <div class="grade">
+            <div class="painel">
+              <div class="painel-topo"><h3>Categorias de saída</h3></div>
+              <div class="chips" id="catSaida"></div>
+              <form class="linha-form add-cat" data-tipo="saida">
+                <input placeholder="Nova categoria" required>
+                <button class="btn">Adicionar</button>
+              </form>
+            </div>
+
+            <div class="painel">
+              <div class="painel-topo"><h3>Categorias de entrada</h3></div>
+              <div class="chips" id="catEntrada"></div>
+              <form class="linha-form add-cat" data-tipo="entrada">
+                <input placeholder="Nova categoria" required>
+                <button class="btn">Adicionar</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="grade">
+            <div class="painel">
+              <div class="painel-topo"><h3>Acesso</h3></div>
+              <p id="acessoEmail"></p>
+              <form id="formSenha" class="form-col" novalidate>
+                <input type="password" name="atual" placeholder="Senha atual" autocomplete="current-password">
+                <input type="password" name="nova" placeholder="Nova senha (mínimo 6 caracteres)" autocomplete="new-password">
+                <input type="password" name="confirmar" placeholder="Confirmar nova senha" autocomplete="new-password">
+                <button class="btn">Alterar senha</button>
+              </form>
+            </div>
+
+            <div class="painel perigo-painel">
+              <div class="painel-topo"><h3>Zona de perigo</h3></div>
+              <p>Apaga todos os lançamentos e volta as categorias ao padrão. Não dá para desfazer.</p>
+              <button class="btn perigo" id="btnApagarTudo">Apagar todos os dados</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- MENU INFERIOR (celular) -->
+  <nav class="nav-mobile">
+    <button data-tab="resumo" class="ativo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      Início
+    </button>
+    <button data-tab="lancamentos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>
+      Lançamentos
+    </button>
+    <button class="nav-novo" data-novo aria-label="Novo lançamento">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <button data-tab="contas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 15 2 2 4-4"/></svg>
+      A pagar
+      <span class="contador" data-contador hidden></span>
+    </button>
+    <button data-tab="mais">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>
+      Ajustes
+    </button>
+  </nav>
+
+  <!-- MODAL LANÇAMENTO -->
+  <dialog id="dlgLanc">
+    <form id="formLanc" novalidate>
+      <div class="dlg-topo">
+        <h2 id="tituloLanc">Novo lançamento</h2>
+        <button type="button" class="icone-btn" data-fechar aria-label="Fechar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="tipo-toggle">
+        <input type="radio" name="tipo" id="tSaida" value="saida" checked><label for="tSaida">Saída</label>
+        <input type="radio" name="tipo" id="tEntrada" value="entrada"><label for="tEntrada">Entrada</label>
+      </div>
+
+      <label class="campo-valor">
+        <span>R$</span>
+        <input name="valor" inputmode="decimal" placeholder="0,00" autocomplete="off" required aria-label="Valor">
+      </label>
+
+      <label class="campo">Descrição
+        <input name="descricao" required placeholder="Ex: Conta de luz do escritório" autocomplete="off">
+      </label>
+
+      <div class="grid2">
+        <label class="campo">Categoria
+          <select name="categoria"></select>
+        </label>
+        <label class="campo">Data / Vencimento
+          <input name="data" type="date" required>
+        </label>
+      </div>
+
+      <div class="grid2">
+        <label class="campo">Forma de pagamento
+          <select name="forma"></select>
+        </label>
+        <label class="campo">Situação
+          <select name="status">
+            <option value="pago" id="optPago">Pago</option>
+            <option value="pendente" id="optPendente">A pagar</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="campo" id="campoParcelas">Repetir todo mês (quantas vezes)
+        <input name="parcelas" type="number" min="1" max="120" value="1" inputmode="numeric">
+      </label>
+
+      <label class="campo">Observação
+        <textarea name="obs" rows="2" placeholder="Opcional (nota fiscal, fornecedor...)"></textarea>
+      </label>
+
+      <div class="dlg-botoes">
+        <button type="button" class="btn perigo" id="btnExcluirLanc">Excluir</button>
+        <button type="submit" class="btn">Salvar
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+  <script src="auth.js"></script>
+</body>
+</html>
