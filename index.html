@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.github.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -60,7 +63,7 @@
       <button type="button" class="login-link" id="btnEsqueci">Esqueci minha senha</button>
     </form>
 
-    <div class="login-rodape"><b>Cauã Brandão</b></div>
+    <div class="login-rodape">Desenvolvido por <b>Cauã Brandão</b></div>
   </div>
 
   <div class="app">
@@ -95,6 +98,8 @@
         Novo lançamento
       </button>
 
+      <button type="button" class="sync-pill sync-lateral" data-sync><i></i><span>Só neste aparelho</span></button>
+
       <div class="sidebar-rodape">
         <div class="usuario">
           <div class="avatar" id="avatar">R</div>
@@ -113,6 +118,7 @@
       <!-- TOPO (celular) -->
       <header class="topbar">
         <svg class="topbar-logo" viewBox="0 14 236 78" aria-label="Rogal Engenharia"><g fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 87.3H45.1V32.3H37.1V83.2" pathLength="1"/><path d="M45.9 18.5H54.4V88.1" pathLength="1"/><path d="M58 46H64.9V87.3H232" pathLength="1"/></g><g fill="currentColor" font-family="Inter, Arial, sans-serif" font-weight="300"><text x="80" y="60" font-size="22" textLength="112" lengthAdjust="spacing">ROGAL</text><text x="80" y="76" font-size="9.5" textLength="150" lengthAdjust="spacing">ENGENHARIA</text></g></svg>
+        <button type="button" class="sync-pill sync-curto" data-sync><i></i><span>Só aqui</span></button>
         <button class="icone-btn" data-sair title="Sair">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
         </button>
@@ -245,9 +251,48 @@
         <section id="tab-mais" class="tab">
           <div class="painel">
             <div class="painel-topo">
+              <h3>Sincronizar PC e celular</h3>
+              <button type="button" class="sync-pill" data-sync><i></i><span>Só neste aparelho</span></button>
+            </div>
+            <p>Os dados são criptografados com a sua senha <b>antes</b> de sair do aparelho e ficam guardados num repositório <b>privado</b> do seu GitHub. Nem o GitHub consegue ler o conteúdo.</p>
+
+            <form id="formSync" class="form-col" novalidate>
+              <div class="sync-campos">
+                <input name="usuario" value="brandao00" placeholder="Usuário do GitHub" autocomplete="off" autocapitalize="off" spellcheck="false">
+                <input name="repo" value="rogal-dados" placeholder="Repositório privado" autocomplete="off" autocapitalize="off" spellcheck="false">
+              </div>
+              <input type="password" name="token" placeholder="Token do GitHub (github_pat_...)" autocomplete="off">
+              <input type="password" name="senha" placeholder="Sua senha de acesso deste site" autocomplete="current-password">
+              <button class="btn">Conectar</button>
+            </form>
+
+            <div id="syncConectado" hidden>
+              <p id="syncInfo"></p>
+              <div class="botoes-linha">
+                <button class="btn" id="btnSyncAgora">Sincronizar agora</button>
+                <button class="btn sec" id="btnSyncSair">Desconectar</button>
+              </div>
+            </div>
+            <p id="syncErro" class="sync-erro"></p>
+
+            <details class="ajuda">
+              <summary>Como configurar (faça uma vez)</summary>
+              <ol>
+                <li>No GitHub, crie um repositório novo chamado <b>rogal-dados</b>, marque <b>Private</b> e a opção <b>Add a README file</b>.</li>
+                <li>Abra <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">github.com/settings/personal-access-tokens/new</a>.</li>
+                <li>Dê um nome (ex.: <i>rogal-sync</i>), em <b>Expiration</b> escolha a validade, em <b>Repository access</b> marque <b>Only select repositories</b> → <b>rogal-dados</b>.</li>
+                <li>Em <b>Permissions → Repository permissions → Contents</b> escolha <b>Read and write</b>. Clique em <b>Generate token</b> e copie.</li>
+                <li>Cole o token aqui, digite sua senha e clique em <b>Conectar</b>. No celular, faça o mesmo com <b>o mesmo e-mail e senha</b>.</li>
+              </ol>
+              <p>O token só dá acesso ao repositório <b>rogal-dados</b> e fica guardado apenas neste aparelho.</p>
+            </details>
+          </div>
+
+          <div class="painel">
+            <div class="painel-topo">
               <h3>Backup dos dados</h3>
             </div>
-            <p>Os dados ficam salvos neste navegador/aparelho. Faça backup com frequência e guarde o arquivo (e-mail, Google Drive, pen drive...).</p>
+            <p>O arquivo de backup é criptografado: só abre com a sua senha. Guarde uma cópia de vez em quando (Google Drive, pen drive...).</p>
             <p id="ultimoBackup"></p>
             <div class="botoes-linha">
               <button class="btn" id="btnBackup">Baixar backup</button>
@@ -281,9 +326,10 @@
             <div class="painel">
               <div class="painel-topo"><h3>Acesso</h3></div>
               <p id="acessoEmail"></p>
+              <p>Os dados ficam criptografados com a sua senha. O site tranca sozinho após 10 min sem uso.</p>
               <form id="formSenha" class="form-col" novalidate>
                 <input type="password" name="atual" placeholder="Senha atual" autocomplete="current-password">
-                <input type="password" name="nova" placeholder="Nova senha (mínimo 6 caracteres)" autocomplete="new-password">
+                <input type="password" name="nova" placeholder="Nova senha (mínimo 8 caracteres)" autocomplete="new-password">
                 <input type="password" name="confirmar" placeholder="Confirmar nova senha" autocomplete="new-password">
                 <button class="btn">Alterar senha</button>
               </form>
@@ -388,6 +434,7 @@
 
   <div class="toast" id="toast"></div>
 
+  <script src="cofre.js"></script>
   <script src="app.js"></script>
   <script src="auth.js"></script>
 </body>

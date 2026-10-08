@@ -1,6 +1,5 @@
 'use strict';
 
-const KEY = 'rogal-financeiro-v1';
 const KEY_BACKUP = 'rogal-financeiro-ultimo-backup';
 
 const CAT_PADRAO = {
@@ -76,22 +75,16 @@ function normalizar(d = {}) {
   return {
     lancamentos: Array.isArray(d.lancamentos) ? d.lancamentos : [],
     categorias: { entrada: cats('entrada'), saida: cats('saida') },
+    catAtualizado: d.catAtualizado || 0,
+    excluidos: d.excluidos && typeof d.excluidos === 'object' ? d.excluidos : {},
   };
 }
 
-function carregar() {
-  try {
-    const d = JSON.parse(localStorage.getItem(KEY));
-    if (d) return normalizar(d);
-  } catch (e) { /* dados corrompidos: começa vazio */ }
-  return normalizar();
-}
-
 function salvar() {
-  localStorage.setItem(KEY, JSON.stringify(db));
+  Cofre.gravar(db);
 }
 
-let db = carregar();
+let db = normalizar();
 let periodo = mesAtual();
 let editandoLanc = null;
 
@@ -569,7 +562,7 @@ function salvarLancamento(e) {
   };
 
   if (editandoLanc) {
-    Object.assign(db.lancamentos.find((x) => x.id === editandoLanc), base);
+    Object.assign(db.lancamentos.find((x) => x.id === editandoLanc), base, { atualizado: Date.now() });
     toast('Lançamento atualizado');
   } else {
     const n = Math.max(1, Math.min(120, parseInt(f.parcelas.value, 10) || 1));
@@ -579,6 +572,7 @@ function salvarLancamento(e) {
         ...base,
         id: uid(),
         criado: agora + i,
+        atualizado: agora + i,
         data: addMeses(base.data, i),
         descricao: n > 1 ? `${base.descricao} (${i + 1}/${n})` : base.descricao,
         status: i === 0 ? base.status : 'pendente',
@@ -594,6 +588,7 @@ function salvarLancamento(e) {
 function excluirLancamento() {
   if (!editandoLanc || !confirm('Excluir este lançamento?')) return;
   db.lancamentos = db.lancamentos.filter((l) => l.id !== editandoLanc);
+  db.excluidos[editandoLanc] = Date.now();
   salvar();
   $('#dlgLanc').close();
   renderTudo();
@@ -606,6 +601,7 @@ function marcarPago(id) {
   const acao = l.tipo === 'entrada' ? 'recebido' : 'pago';
   if (!confirm(`Marcar "${l.descricao}" (${brl(l.valor)}) como ${acao}?`)) return;
   l.status = 'pago';
+  l.atualizado = Date.now();
   salvar();
   $$(`.linha[data-id="${id}"]`).forEach((el) => el.classList.add('saindo'));
   setTimeout(renderTudo, semAnimacao() ? 0 : 320);
@@ -625,27 +621,48 @@ function baixar(nome, conteudo, tipo) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-function fazerBackup() {
-  baixar(`rogal-backup-${hoje()}.json`, JSON.stringify({ app: 'rogal-financeiro', versao: 1, ...db }, null, 2), 'application/json');
+async function fazerBackup() {
+  const pacote = await Cofre.empacotar(db);
+  baixar(`rogal-backup-${hoje()}.json`, JSON.stringify(pacote), 'application/json');
   localStorage.setItem(KEY_BACKUP, hoje());
   renderUltimoBackup();
-  toast('Backup baixado');
+  toast('Backup criptografado baixado');
+}
+
+// Substitui os dados atuais pelos do backup, registrando as exclusões para os outros aparelhos.
+function aplicarBackup(d) {
+  const agora = Date.now();
+  const novos = new Set(d.lancamentos.map((l) => l.id));
+  const excluidos = { ...db.excluidos };
+  db.lancamentos.forEach((l) => { if (!novos.has(l.id)) excluidos[l.id] = agora; });
+  d.lancamentos.forEach((l) => { delete excluidos[l.id]; });
+  db = normalizar({
+    ...d,
+    lancamentos: d.lancamentos.map((l) => ({ ...l, atualizado: agora })),
+    catAtualizado: agora,
+    excluidos,
+  });
+  salvar();
+  renderTudo();
+  toast('Backup restaurado');
 }
 
 function restaurarBackup(arquivo) {
   const leitor = new FileReader();
-  leitor.onload = () => {
+  leitor.onload = async () => {
+    let d;
     try {
-      const d = JSON.parse(leitor.result);
+      d = JSON.parse(leitor.result);
+      if (d.cifrado) {
+        d = await Cofre.desempacotar(d, async () => prompt('Esse backup foi feito com outra senha. Digite a senha da época do backup:'));
+      }
       if (!Array.isArray(d.lancamentos)) throw new Error('formato');
-      if (!confirm(`Restaurar backup com ${d.lancamentos.length} lançamento(s)?\n\nOs dados atuais serão SUBSTITUÍDOS.`)) return;
-      db = normalizar(d);
-      salvar();
-      renderTudo();
-      toast('Backup restaurado');
     } catch (e) {
-      alert('Arquivo de backup inválido.');
+      if (e.message !== 'cancelado') alert(e.message === 'Senha do backup incorreta.' ? e.message : 'Arquivo de backup inválido.');
+      return;
     }
+    if (!confirm(`Restaurar backup com ${d.lancamentos.length} lançamento(s)?\n\nOs dados atuais serão SUBSTITUÍDOS.`)) return;
+    aplicarBackup(d);
   };
   leitor.readAsText(arquivo);
 }
@@ -670,9 +687,86 @@ function exportarCSV() {
   toast('Planilha exportada');
 }
 
+/* ---------- Sincronização entre aparelhos ---------- */
+
+function renderSync(estado = Cofre.status().estado, texto = Cofre.status().texto) {
+  $$('[data-sync]').forEach((el) => {
+    el.dataset.estado = estado;
+    el.title = texto;
+    $('span', el).textContent = el.classList.contains('sync-curto')
+      ? { ok: 'Na nuvem', sincronizando: 'Salvando', offline: 'Offline', erro: 'Erro', local: 'Só aqui' }[estado]
+      : texto;
+  });
+
+  const cfg = Cofre.sync();
+  $('#formSync').hidden = !!cfg;
+  $('#syncConectado').hidden = !cfg;
+  if (cfg) {
+    const quando = cfg.ultima
+      ? new Date(cfg.ultima).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+      : 'ainda não';
+    $('#syncInfo').innerHTML = `Conectado a <b>${esc(cfg.usuario)}/${esc(cfg.repo)}</b> · última sincronização: ${quando}`;
+  }
+  $('#syncErro').textContent = estado === 'erro' ? texto : '';
+}
+
+function iniciarSync() {
+  $('#formSync').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target.elements;
+    const btn = $('button', e.target);
+    if (!f.usuario.value.trim() || !f.repo.value.trim() || !f.token.value.trim() || !f.senha.value) {
+      $('#syncErro').textContent = 'Preencha todos os campos.';
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Conectando…';
+    let falha = '';
+    try {
+      await Cofre.conectar({ usuario: f.usuario.value, repo: f.repo.value, token: f.token.value }, f.senha.value);
+      f.token.value = '';
+      f.senha.value = '';
+      $('#sidebarEmail').textContent = Cofre.email();
+      toast('Sincronização ativada');
+    } catch (err) {
+      Cofre.desconectar();
+      falha = err.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Conectar';
+      renderSync();
+      if (falha) $('#syncErro').textContent = falha;
+    }
+  });
+
+  $('#btnSyncAgora').addEventListener('click', async () => {
+    await Cofre.sincronizar();
+    renderSync();
+    if (Cofre.status().estado === 'ok') toast('Sincronizado');
+  });
+
+  $('#btnSyncSair').addEventListener('click', () => {
+    if (!confirm('Desconectar a sincronização neste aparelho?\n\nOs dados continuam aqui e na nuvem, mas param de se atualizar entre os aparelhos.')) return;
+    Cofre.desconectar();
+    renderSync();
+  });
+
+  $$('[data-sync]').forEach((el) => el.addEventListener('click', () => irPara('mais')));
+  renderSync();
+  Cofre.sincronizar();
+}
+
 /* ---------- Eventos ---------- */
 
-function iniciar() {
+function iniciar(dados) {
+  db = normalizar(dados);
+  Cofre.aoAtualizar = (novos) => {
+    db = normalizar(novos);
+    renderTudo();
+  };
+  Cofre.aoStatus = renderSync;
+  iniciarSync();
+
   $('#formLanc').elements.forma.innerHTML = FORMAS.map((f) => `<option>${f}</option>`).join('');
 
   const agora = new Date();
@@ -706,6 +800,7 @@ function iniciar() {
       if (db.categorias[tipo].length <= 1) { toast('Mantenha pelo menos uma categoria'); return; }
       if (!confirm(`Remover a categoria "${nome}"?\n(Lançamentos antigos continuam com ela.)`)) return;
       db.categorias[tipo].splice(rm.dataset.idx, 1);
+      db.catAtualizado = Date.now();
       salvar();
       renderCategorias();
     }
@@ -735,6 +830,7 @@ function iniciar() {
     if (!nome) return;
     if (lista.some((c) => c.toLowerCase() === nome.toLowerCase())) { toast('Essa categoria já existe'); return; }
     lista.push(nome);
+    db.catAtualizado = Date.now();
     salvar();
     input.value = '';
     renderCategorias();
@@ -751,7 +847,10 @@ function iniciar() {
   $('#btnApagarTudo').addEventListener('click', () => {
     if (!confirm('Apagar TODOS os lançamentos e categorias?')) return;
     if (prompt('Essa ação não pode ser desfeita. Digite APAGAR para confirmar:') !== 'APAGAR') return;
-    db = normalizar();
+    const agora = Date.now();
+    const excluidos = { ...db.excluidos };
+    db.lancamentos.forEach((l) => { excluidos[l.id] = agora; });
+    db = normalizar({ excluidos, catAtualizado: agora });
     salvar();
     renderTudo();
     toast('Dados apagados');
