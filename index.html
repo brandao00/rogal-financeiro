@@ -34,6 +34,12 @@
         <p id="loginSub">Acesse o controle de despesas da Rogal</p>
       </div>
 
+      <button type="button" class="btn btn-login btn-bio" id="btnBio" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M9 9v1.5M15 9v1.5M12 9v4h-1M9 16c1.7 1.3 4.3 1.3 6 0"/></svg>
+        <span id="bioBotao">Entrar com Face ID</span>
+      </button>
+      <div class="login-ou" id="loginOu" hidden>ou use a senha</div>
+
       <label class="campo">E-mail
         <span class="input-icone">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
@@ -155,16 +161,10 @@
             <div class="hero-valor" id="rSaldo">R$ 0,00</div>
             <div class="hero-stats">
               <div class="hero-stat">
-                <span class="bolinha entrada">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7 7 7-7"/></svg>
-                </span>
-                <div><span>Entradas</span><b id="rEntradas">R$ 0,00</b></div>
+                <div><span><i class="ponto entrada"></i>Entradas</span><b id="rEntradas">R$ 0,00</b></div>
               </div>
               <div class="hero-stat">
-                <span class="bolinha saida">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
-                </span>
-                <div><span>Saídas</span><b id="rSaidas">R$ 0,00</b></div>
+                <div><span><i class="ponto saida"></i>Saídas</span><b id="rSaidas">R$ 0,00</b></div>
               </div>
             </div>
           </div>
@@ -191,6 +191,7 @@
             <div class="painel">
               <div class="painel-topo">
                 <h3>Despesas por categoria</h3>
+                <span class="painel-total" id="totalCategorias"></span>
               </div>
               <div id="graficoCategorias"></div>
             </div>
@@ -291,6 +292,21 @@
 
           <div class="painel">
             <div class="painel-topo">
+              <h3>Notificações</h3>
+              <span class="estado-aviso" id="avisosEstado"></span>
+            </div>
+            <p>Receba um aviso no celular no dia e hora que você escolher. É só preencher o campo <b>Lembrete</b> ao lançar uma conta a pagar. Se marcar como paga antes, o aviso é cancelado.</p>
+            <p id="avisosAjuda" class="aviso-ajuda"></p>
+            <div class="botoes-linha">
+              <button class="btn" id="btnAvisos">Ativar notificações</button>
+              <button class="btn sec" id="btnAvisosTeste" hidden>Enviar teste</button>
+              <button class="btn sec" id="btnAvisosSair" hidden>Desativar</button>
+            </div>
+            <p id="avisosErro" class="sync-erro"></p>
+          </div>
+
+          <div class="painel">
+            <div class="painel-topo">
               <h3>Backup dos dados</h3>
             </div>
             <p>O arquivo de backup é criptografado: só abre com a sua senha. Guarde uma cópia de vez em quando (Google Drive, pen drive...).</p>
@@ -328,6 +344,18 @@
               <div class="painel-topo"><h3>Acesso</h3></div>
               <p id="acessoEmail"></p>
               <p>Os dados ficam criptografados com a sua senha. O site tranca sozinho após 10 min sem uso.</p>
+              <div class="bio-ajuste" id="bioAjuste" hidden>
+                <div class="bio-info">
+                  <b id="bioTitulo">Entrar com Face ID</b>
+                  <span id="bioEstado">Desativado neste aparelho</span>
+                </div>
+                <button type="button" class="btn sec" id="btnBioDesativar" hidden>Desativar</button>
+              </div>
+              <form id="formBio" class="linha-form" novalidate hidden>
+                <input type="password" name="senha" placeholder="Sua senha para ativar" autocomplete="current-password">
+                <button class="btn">Ativar</button>
+              </form>
+              <p id="bioErro" class="sync-erro"></p>
               <form id="formSenha" class="form-col" novalidate>
                 <input type="password" name="atual" placeholder="Senha atual" autocomplete="current-password">
                 <input type="password" name="nova" placeholder="Nova senha (mínimo 8 caracteres)" autocomplete="new-password">
@@ -416,6 +444,11 @@
         </label>
       </div>
 
+      <label class="campo" id="campoLembrete" hidden>Lembrete no celular (dia e hora)
+        <input name="lembrete" type="datetime-local">
+        <small id="lembreteDica"></small>
+      </label>
+
       <label class="campo" id="campoParcelas">Repetir todo mês (quantas vezes)
         <input name="parcelas" type="number" min="1" max="120" value="1" inputmode="numeric">
       </label>
@@ -433,9 +466,27 @@
     </form>
   </dialog>
 
+  <!-- OFERTA DE FACE ID -->
+  <dialog id="dlgBio" class="dlg-bio">
+    <form novalidate>
+      <div class="bio-icone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M9 9v1.5M15 9v1.5M12 9v4h-1M9 16c1.7 1.3 4.3 1.3 6 0"/></svg>
+      </div>
+      <h2 id="dlgBioTitulo">Entrar com Face ID?</h2>
+      <p>Da próxima vez é só olhar para a tela, sem digitar a senha. A senha continua valendo.</p>
+      <p class="sync-erro" id="dlgBioErro"></p>
+      <div class="dlg-botoes">
+        <button type="button" class="btn sec" id="btnBioDepois">Agora não</button>
+        <button type="button" class="btn" id="btnBioAtivar">Ativar</button>
+      </div>
+    </form>
+  </dialog>
+
   <div class="toast" id="toast"></div>
 
   <script src="cofre.js"></script>
+  <script src="biometria.js"></script>
+  <script src="avisos.js"></script>
   <script src="app.js"></script>
   <script src="auth.js"></script>
 </body>

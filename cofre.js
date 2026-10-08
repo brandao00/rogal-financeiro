@@ -126,8 +126,8 @@ const Cofre = (() => {
     });
   }
 
-  async function baixarRemoto(cfg) {
-    const r = await gh(cfg, `/contents/${ARQUIVO}`);
+  async function baixarRemoto(cfg, nome = ARQUIVO) {
+    const r = await gh(cfg, `/contents/${nome}`);
     if (r.status === 404) return null;
     if (!r.ok) throw erroGitHub(r.status);
     const j = await r.json();
@@ -140,12 +140,12 @@ const Cofre = (() => {
     return { sha: j.sha, pacote: JSON.parse(atob(conteudo.replace(/\s/g, ''))) };
   }
 
-  async function enviarRemoto(cfg, pacote, sha) {
-    const r = await gh(cfg, `/contents/${ARQUIVO}`, {
+  async function enviarRemoto(cfg, pacote, sha, nome = ARQUIVO, mensagem = 'Atualização dos dados (criptografados)') {
+    const r = await gh(cfg, `/contents/${nome}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message: 'Atualização dos dados (criptografados)',
+        message: mensagem,
         content: btoa(JSON.stringify(pacote)),
         ...(sha ? { sha } : {}),
       }),
@@ -331,6 +331,19 @@ const Cofre = (() => {
   };
 
   api.sincronizar = () => sincronizar();
+
+  // Outros arquivos JSON (só ASCII) no repositório de sincronização.
+  api.lerNuvem = async (nome) => {
+    const cfg = lerSync();
+    if (!cfg) throw new Error('sem-sync');
+    const r = await baixarRemoto(cfg, nome);
+    return r && { sha: r.sha, json: r.pacote };
+  };
+  api.gravarNuvem = async (nome, json, sha, mensagem) => {
+    const cfg = lerSync();
+    if (!cfg) throw new Error('sem-sync');
+    return enviarRemoto(cfg, json, sha, nome, mensagem);
+  };
 
   api.empacotar = async (dados) => empacotar(dados);
 

@@ -2,6 +2,8 @@
 
 (() => {
   const KEY_TENTATIVAS = 'rogal-tentativas';
+  const KEY_BIO_RECUSADO = 'rogal-bio-recusado';
+  const KEY_SAIU = 'rogal-saiu';
   const BLOQUEIO_INATIVO = 10 * 60 * 1000;
   const BLOQUEIO_FUNDO = 5 * 60 * 1000;
   const SENHA_MINIMA = 8;
@@ -58,6 +60,12 @@
     f.senha.placeholder = modo === 'criar' ? `Mínimo ${SENHA_MINIMA} caracteres` : '••••••••';
     if (modo === 'entrar') f.email.value = Cofre.email();
 
+    const comBio = modo === 'entrar' && Bio.ativo();
+    btnBio.hidden = !comBio;
+    document.getElementById('loginOu').hidden = !comBio;
+    document.getElementById('bioBotao').textContent = `Entrar com ${Bio.nome}`;
+    btn.classList.toggle('sec', comBio);
+
     document.body.classList.add('bloqueado');
     tela.hidden = false;
     if (!window.crypto?.subtle) {
@@ -65,7 +73,127 @@
     }
     const s = segundosBloqueado();
     if (s) erro(`Muitas tentativas erradas. Tente de novo em ${textoEspera(s)}.`);
+
+    const saiu = sessionStorage.getItem(KEY_SAIU);
+    sessionStorage.removeItem(KEY_SAIU);
+    if (comBio && !saiu) entrarComBio(true);
   }
+
+  /* ---------- Face ID / biometria ---------- */
+
+  const btnBio = document.getElementById('btnBio');
+  const dlgBio = document.getElementById('dlgBio');
+  let oferta = null;
+
+  function erroBio(err) {
+    if (err.message === 'confirmar') return 'Toque de novo para confirmar.';
+    if (err.message === 'sem-prf') {
+      return 'Este aparelho ou navegador não permite entrar sem senha neste site. No iPhone, é preciso o iOS 18 ou mais novo.';
+    }
+    if (err.name === 'NotAllowedError' || err.name === 'AbortError') return 'Cancelado.';
+    return 'Não foi possível ativar. Tente de novo.';
+  }
+
+  async function entrarComBio(automatico) {
+    erro('');
+    btnBio.disabled = true;
+    let acesso;
+    try {
+      acesso = await Bio.entrar();
+    } catch (err) {
+      if (!automatico) erro(`${Bio.nome} não reconhecido ou cancelado. Tente de novo ou entre com a senha.`);
+      return;
+    } finally {
+      btnBio.disabled = false;
+    }
+    try {
+      liberar(await Cofre.abrir(acesso.email, acesso.senha));
+    } catch (err) {
+      Bio.desativar();
+      mostrarLogin();
+      erro(`A senha foi alterada. Entre com a senha nova e ative ${Bio.nome} de novo.`);
+    }
+  }
+
+  btnBio.addEventListener('click', () => entrarComBio(false));
+
+  async function oferecerBio(email, senha, insistir) {
+    if (Bio.ativo() || (!insistir && localStorage.getItem(KEY_BIO_RECUSADO)) || !await Bio.disponivel()) return;
+    oferta = { email, senha };
+    document.getElementById('dlgBioTitulo').textContent = `Entrar com ${Bio.nome}?`;
+    document.getElementById('dlgBioErro').textContent = '';
+    dlgBio.showModal();
+  }
+
+  document.getElementById('btnBioAtivar').addEventListener('click', async (e) => {
+    if (!oferta) { dlgBio.close(); return; }
+    const b = e.currentTarget;
+    b.disabled = true;
+    try {
+      await Bio.ativar(oferta.email, oferta.senha);
+      dlgBio.close();
+      toast(`${Bio.nome} ativado`);
+      atualizarBioAjuste();
+    } catch (err) {
+      document.getElementById('dlgBioErro').textContent = erroBio(err);
+      if (err.message === 'sem-prf') {
+        localStorage.setItem(KEY_BIO_RECUSADO, '1');
+        b.hidden = true;
+      }
+    } finally {
+      b.disabled = false;
+    }
+  });
+
+  document.getElementById('btnBioDepois').addEventListener('click', () => {
+    localStorage.setItem(KEY_BIO_RECUSADO, '1');
+    dlgBio.close();
+  });
+
+  dlgBio.addEventListener('close', () => {
+    oferta = null;
+    Bio.cancelar();
+    document.getElementById('btnBioAtivar').hidden = false;
+  });
+
+  async function atualizarBioAjuste() {
+    const ativo = Bio.ativo();
+    document.getElementById('bioAjuste').hidden = !ativo && !await Bio.disponivel();
+    document.getElementById('bioTitulo').textContent = `Entrar com ${Bio.nome}`;
+    const estado = document.getElementById('bioEstado');
+    estado.textContent = ativo ? 'Ativado neste aparelho' : 'Desativado neste aparelho';
+    estado.classList.toggle('on', ativo);
+    document.getElementById('btnBioDesativar').hidden = !ativo;
+    document.getElementById('formBio').hidden = ativo || document.getElementById('bioAjuste').hidden;
+  }
+
+  document.getElementById('btnBioDesativar').addEventListener('click', () => {
+    Bio.desativar();
+    atualizarBioAjuste();
+    toast(`${Bio.nome} desativado`);
+  });
+
+  document.getElementById('formBio').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const campo = e.target.elements.senha;
+    const msg = document.getElementById('bioErro');
+    msg.textContent = '';
+    if (!campo.value) { msg.textContent = 'Digite sua senha.'; return; }
+    try {
+      await Bio.ativar(Cofre.email(), campo.value);
+    } catch (err) {
+      msg.textContent = erroBio(err);
+      return;
+    }
+    if (!await Cofre.conferirSenha(campo.value)) {
+      Bio.desativar();
+      msg.textContent = 'Senha incorreta.';
+      return;
+    }
+    campo.value = '';
+    atualizarBioAjuste();
+    toast(`${Bio.nome} ativado`);
+  });
 
   function liberar(dados) {
     localStorage.removeItem(KEY_TENTATIVAS);
@@ -77,6 +205,7 @@
     document.getElementById('avatar').textContent = email.charAt(0).toUpperCase();
     liberado = true;
     iniciar(dados);
+    atualizarBioAjuste();
   }
 
   form.addEventListener('submit', async (e) => {
@@ -96,6 +225,7 @@
         if (senha.length < SENHA_MINIMA) { erro(`A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`); return; }
         if (senha !== f.confirmar.value) { erro('As senhas não conferem.'); return; }
         liberar(await Cofre.criar(email, senha, {}));
+        oferecerBio(email, senha);
       } else {
         let dados;
         try {
@@ -109,6 +239,7 @@
           return;
         }
         liberar(dados);
+        oferecerBio(email, senha);
       }
     } catch (err) {
       erro('Não foi possível entrar. Tente novamente.');
@@ -129,7 +260,10 @@
     location.reload();
   });
 
-  document.querySelectorAll('[data-sair]').forEach((b) => b.addEventListener('click', () => Cofre.trancar()));
+  document.querySelectorAll('[data-sair]').forEach((b) => b.addEventListener('click', () => {
+    sessionStorage.setItem(KEY_SAIU, '1');
+    Cofre.trancar();
+  }));
 
   document.getElementById('formSenha').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -137,9 +271,15 @@
     if (s.nova.value.length < SENHA_MINIMA) { toast(`A nova senha precisa ter ${SENHA_MINIMA}+ caracteres`); return; }
     if (s.nova.value !== s.confirmar.value) { toast('As senhas não conferem'); return; }
     try {
-      await Cofre.trocarSenha(s.atual.value, s.nova.value);
+      const nova = s.nova.value;
+      await Cofre.trocarSenha(s.atual.value, nova);
       e.target.reset();
       toast('Senha alterada');
+      if (Bio.ativo()) {
+        Bio.desativar();
+        atualizarBioAjuste();
+        oferecerBio(Cofre.email(), nova, true);
+      }
     } catch (err) {
       toast(err.message === 'Senha atual incorreta' ? err.message : 'Não foi possível alterar a senha');
     }

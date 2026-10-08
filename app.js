@@ -20,7 +20,6 @@ const FORMAS = ['Pix', 'Dinheiro', 'Transferência', 'Boleto', 'Cartão de créd
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
-const CORES = ['#ef4444', '#f97316', '#eab308', '#ec4899', '#8b5cf6', '#3b82f6'];
 const TITULOS = { resumo: 'Visão geral', lancamentos: 'Lançamentos', contas: 'Contas a pagar', mais: 'Ajustes' };
 
 const svgIcone = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -44,6 +43,7 @@ const ICONES = {
   checkCirculo: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
   lista: '<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/>',
   pizza: '<path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/>',
+  sino: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
 };
 const REGRAS_ICONE = [
   [/aluguel|condominio|iptu/, 'casa'],
@@ -132,6 +132,13 @@ function rotuloDia(iso) {
   if (dif === 1) return 'Amanhã';
   const [y, m, d] = iso.split('-').map(Number);
   return `${fmtDataCurta(iso)} · ${DIAS[new Date(y, m - 1, d).getDay()]}`;
+}
+
+function fmtLembrete(valor) {
+  const [data, hora] = valor.split('T');
+  const dif = diasAte(data);
+  const dia = dif === 0 ? 'hoje' : dif === 1 ? 'amanhã' : fmtDataCurta(data);
+  return `${dia} ${hora.slice(0, 5)}`;
 }
 
 function textoVencimento(l) {
@@ -268,6 +275,9 @@ function linhaHTML(l, modo = 'lista') {
 
   if (modo === 'conta') {
     sub = `<span class="${emAtraso ? 'txt-atraso' : ''}">${textoVencimento(l)}</span> · ${esc(l.categoria)}`;
+    if (l.lembrete && new Date(l.lembrete) > Date.now()) {
+      sub = `<span class="lembrete-tag">${svgIcone(ICONES.sino)}${fmtLembrete(l.lembrete)}</span>${sub}`;
+    }
     extra = `<button class="btn-pagar" data-pagar="${l.id}">${svgIcone(ICONES.check)}${l.tipo === 'entrada' ? 'Recebi' : 'Paguei'}</button>`;
   } else {
     const partes = modo === 'data' ? [fmtDataCurta(l.data), l.categoria] : [l.categoria, l.forma];
@@ -288,45 +298,32 @@ function linhaHTML(l, modo = 'lista') {
   </div>`;
 }
 
-function donutHTML(saidas) {
+function categoriasHTML(saidas) {
   const porCategoria = {};
   saidas.forEach((l) => {
     const c = l.categoria || 'Sem categoria';
     porCategoria[c] = (porCategoria[c] || 0) + Number(l.valor);
   });
   let itens = Object.entries(porCategoria).sort((a, b) => b[1] - a[1]);
-  if (!itens.length) return vazio('Nenhuma despesa neste período.', 'pizza');
+  if (!itens.length) return { total: 0, html: vazio('Nenhuma despesa neste período.', 'pizza') };
   if (itens.length > 6) {
     const resto = itens.slice(5).reduce((s, [, v]) => s + v, 0);
     itens = [...itens.slice(0, 5), ['Outras', resto]];
   }
 
   const total = itens.reduce((s, [, v]) => s + v, 0);
-  const R = 50;
-  const C = 2 * Math.PI * R;
-  let acumulado = 0;
-  const arcos = itens.map(([, v], i) => {
-    const tam = (v / total) * C;
-    const folga = itens.length > 1 ? Math.min(2.5, tam / 2) : 0;
-    const arco = `<circle cx="60" cy="60" r="${R}" stroke="${CORES[i]}" style="--i:${i}" stroke-dasharray="${tam - folga} ${C - tam + folga}" stroke-dashoffset="${-acumulado}"/>`;
-    acumulado += tam;
-    return arco;
-  }).join('');
-
-  return `<div class="donut-wrap">
-    <div class="donut">
-      <svg viewBox="0 0 120 120"><circle class="donut-fundo" cx="60" cy="60" r="${R}"/>${arcos}</svg>
-      <div class="donut-centro"><span>Total</span><b>${brl(total)}</b></div>
-    </div>
-    <ul class="legenda">
-      ${itens.map(([c, v], i) => `<li>
-        <i style="background:${CORES[i]}"></i>
-        <span class="legenda-nome">${esc(c)}</span>
-        <span class="legenda-pct">${Math.round((v / total) * 100)}%</span>
+  const maior = Math.max(...itens.map(([, v]) => v));
+  const html = `<ul class="barras">
+    ${itens.map(([c, v], i) => `<li>
+      <div class="barra-topo">
+        <span class="barra-nome">${esc(c)}</span>
+        <span class="barra-pct">${Math.round((v / total) * 100)}%</span>
         <b>${brl(v)}</b>
-      </li>`).join('')}
-    </ul>
-  </div>`;
+      </div>
+      <div class="barra"><i style="width:${(v / maior) * 100}%;opacity:${Math.max(0.35, 1 - i * 0.14)};--i:${i}"></i></div>
+    </li>`).join('')}
+  </ul>`;
+  return { total, html };
 }
 
 function renderResumo() {
@@ -374,7 +371,9 @@ function renderResumo() {
     c.textContent = emAtraso.length;
   });
 
-  $('#graficoCategorias').innerHTML = donutHTML(doPeriodo.filter((l) => l.tipo === 'saida'));
+  const categorias = categoriasHTML(doPeriodo.filter((l) => l.tipo === 'saida'));
+  $('#graficoCategorias').innerHTML = categorias.html;
+  $('#totalCategorias').textContent = categorias.total ? brl(categorias.total) : '';
 
   const proximas = db.lancamentos.filter(pendente).sort(ordenarAsc).slice(0, 5);
   $('#listaVencimentos').innerHTML = proximas.length
@@ -517,6 +516,14 @@ function ajustarCampoValor() {
   input.style.width = `${Math.ceil(largura) + 6}px`;
 }
 
+function atualizarCampoLembrete() {
+  const pendenteForm = $('#formLanc').elements.status.value === 'pendente';
+  $('#campoLembrete').hidden = !pendenteForm;
+  $('#lembreteDica').textContent = Avisos.ativo()
+    ? 'Opcional. O aviso chega no celular nesse horário (pode atrasar alguns minutos).'
+    : 'Opcional. Para receber o aviso, ative as notificações em Ajustes.';
+}
+
 function abrirLancamento(l = null) {
   const form = $('#formLanc');
   const f = form.elements;
@@ -533,6 +540,8 @@ function abrirLancamento(l = null) {
   f.forma.value = l?.forma || 'Pix';
   f.status.value = l?.status || 'pago';
   f.obs.value = l?.obs || '';
+  f.lembrete.value = l?.lembrete || '';
+  atualizarCampoLembrete();
   f.parcelas.value = 1;
   $('#campoParcelas').hidden = !!l;
   $('#btnExcluirLanc').hidden = !l;
@@ -559,6 +568,7 @@ function salvarLancamento(e) {
     forma: f.forma.value,
     status: f.status.value,
     obs: f.obs.value.trim(),
+    lembrete: f.status.value === 'pendente' ? f.lembrete.value : '',
   };
 
   if (editandoLanc) {
@@ -574,6 +584,7 @@ function salvarLancamento(e) {
         criado: agora + i,
         atualizado: agora + i,
         data: addMeses(base.data, i),
+        lembrete: base.lembrete && i > 0 ? `${addMeses(base.lembrete.slice(0, 10), i)}T${base.lembrete.slice(11)}` : base.lembrete,
         descricao: n > 1 ? `${base.descricao} (${i + 1}/${n})` : base.descricao,
         status: i === 0 ? base.status : 'pendente',
       });
@@ -708,6 +719,7 @@ function renderSync(estado = Cofre.status().estado, texto = Cofre.status().texto
     $('#syncInfo').innerHTML = `Conectado a <b>${esc(cfg.usuario)}/${esc(cfg.repo)}</b> · última sincronização: ${quando}`;
   }
   $('#syncErro').textContent = estado === 'erro' ? texto : '';
+  renderAvisos();
 }
 
 function iniciarSync() {
@@ -756,6 +768,76 @@ function iniciarSync() {
   Cofre.sincronizar();
 }
 
+/* ---------- Notificações ---------- */
+
+const MOTIVOS_AVISO = {
+  icone: 'No iPhone, as notificações só funcionam no app da tela de início: no Safari, toque em Compartilhar → Adicionar à Tela de Início e abra o Rogal por lá.',
+  navegador: 'Este navegador não suporta notificações.',
+  'sem-sync': 'Ative primeiro a sincronização (acima). É por ela que os lembretes chegam ao robô que envia as notificações.',
+  negado: 'As notificações estão bloqueadas. No iPhone: Ajustes → Notificações → Rogal → Permitir Notificações.',
+};
+
+function renderAvisos() {
+  const ativo = Avisos.ativo();
+  let motivo = Avisos.motivoSemSuporte();
+  if (!motivo && !ativo && !Cofre.sync()) motivo = 'sem-sync';
+  if (!motivo && !ativo && window.Notification?.permission === 'denied') motivo = 'negado';
+  $('#avisosEstado').textContent = ativo ? 'Ativas neste aparelho' : '';
+  $('#avisosAjuda').textContent = motivo ? MOTIVOS_AVISO[motivo] : '';
+  $('#btnAvisos').hidden = ativo || !!motivo;
+  $('#btnAvisosTeste').hidden = !ativo;
+  $('#btnAvisosSair').hidden = !ativo;
+}
+
+function iniciarAvisos() {
+  const erro = $('#avisosErro');
+
+  $('#btnAvisos').addEventListener('click', async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true;
+    erro.textContent = '';
+    try {
+      await Avisos.ativar();
+      toast('Notificações ativadas');
+    } catch (err) {
+      erro.textContent = MOTIVOS_AVISO[err.message] || `Não foi possível ativar (${err.message}).`;
+    } finally {
+      b.disabled = false;
+      renderAvisos();
+    }
+  });
+
+  $('#btnAvisosTeste').addEventListener('click', async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true;
+    erro.textContent = '';
+    try {
+      await Avisos.testar();
+      $('#avisosAjuda').textContent = 'Teste enviado. A notificação deve chegar em até 15 minutos, mesmo com o app fechado.';
+    } catch (err) {
+      erro.textContent = err.message === 'sem-sync' ? MOTIVOS_AVISO['sem-sync'] : err.message;
+    } finally {
+      b.disabled = false;
+    }
+  });
+
+  $('#btnAvisosSair').addEventListener('click', async () => {
+    if (!confirm('Parar de receber notificações neste aparelho?')) return;
+    erro.textContent = '';
+    try {
+      await Avisos.desativar();
+      toast('Notificações desativadas');
+    } catch (err) {
+      erro.textContent = err.message;
+    }
+    renderAvisos();
+  });
+
+  renderAvisos();
+  Avisos.conferir();
+  Avisos.agendar(db);
+}
+
 /* ---------- Eventos ---------- */
 
 function iniciar(dados) {
@@ -764,8 +846,12 @@ function iniciar(dados) {
     db = normalizar(novos);
     renderTudo();
   };
-  Cofre.aoStatus = renderSync;
+  Cofre.aoStatus = (estado, texto) => {
+    renderSync(estado, texto);
+    if (estado === 'ok') Avisos.agendar(db);
+  };
   iniciarSync();
+  iniciarAvisos();
 
   $('#formLanc').elements.forma.innerHTML = FORMAS.map((f) => `<option>${f}</option>`).join('');
 
@@ -815,6 +901,7 @@ function iniciar(dados) {
     r.addEventListener('change', () => atualizarFormPorTipo(r.value)));
   $('#formLanc').elements.valor.addEventListener('input', ajustarCampoValor);
   $('#formLanc').addEventListener('submit', salvarLancamento);
+  $('#formLanc').elements.status.addEventListener('change', atualizarCampoLembrete);
   $('#btnExcluirLanc').addEventListener('click', excluirLancamento);
 
   $$('dialog').forEach((dlg) => {
@@ -858,9 +945,15 @@ function iniciar(dados) {
 
   renderTudo();
 
+  const abaInicial = new URLSearchParams(location.search).get('aba');
+  if (TITULOS[abaInicial]) irPara(abaInicial);
+
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (TITULOS[e.data?.aba]) irPara(e.data.aba);
+    });
   }
 }
 
@@ -868,7 +961,7 @@ function iniciar(dados) {
 
 document.addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'mouse') return;
-  const el = e.target.closest('.hero, .tile, .login-card');
+  const el = e.target.closest('.login-card');
   if (!el) return;
   const r = el.getBoundingClientRect();
   el.style.setProperty('--mx', `${e.clientX - r.left}px`);

@@ -1,5 +1,5 @@
-const CACHE = 'rogal-v14';
-const ARQUIVOS = ['./', './index.html', './style.css', './cofre.js', './app.js', './auth.js', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
+const CACHE = 'rogal-v17';
+const ARQUIVOS = ['./', './index.html', './style.css', './cofre.js', './biometria.js', './avisos.js', './app.js', './auth.js', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ARQUIVOS)));
@@ -27,4 +27,29 @@ self.addEventListener('fetch', (e) => {
       })
       .catch(() => caches.match(e.request))
   );
+});
+
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { /* mensagem sem JSON */ }
+  e.waitUntil(self.registration.showNotification(d.t || 'Rogal', {
+    body: d.b || 'Você tem uma conta para conferir.',
+    tag: d.tag,
+    icon: 'icon-192.png',
+    badge: 'icon-192.png',
+    data: { url: './?aba=contas' },
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = new URL(e.notification.data?.url || './', self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((janelas) => {
+    const aberta = janelas.find((j) => j.url.startsWith(self.registration.scope));
+    if (aberta) {
+      aberta.postMessage({ aba: 'contas' });
+      return aberta.focus();
+    }
+    return self.clients.openWindow(url);
+  }));
 });
